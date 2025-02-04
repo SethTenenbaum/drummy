@@ -1,7 +1,13 @@
+import json
 import numpy as np
 import pickle
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+
+# Load labels configuration
+with open('labels_config.json', 'r') as f:
+    labels_config = json.load(f)
+print("Labels configuration loaded:", labels_config)
 
 # Load features and labels
 with open('features/features.pkl', 'rb') as f:
@@ -12,23 +18,20 @@ with open('features/labels.pkl', 'rb') as f:
     labels = pickle.load(f)
     print("Labels loaded:", labels.shape)
 
-# Identify indices of snare and cymbal sounds
-snare_indices = [i for i, label in enumerate(labels) if 'snare' in label.lower()]
-cymbal_indices = [i for i, label in enumerate(labels) if 'cymbal' in label.lower()]
-print(f"Found {len(snare_indices)} snare sounds")
-print(f"Found {len(cymbal_indices)} cymbal sounds")
+# Identify indices of sounds based on labels configuration
+label_indices = {label: [i for i, lbl in enumerate(labels) if label in lbl.lower()] for label in labels_config.keys()}
+for label, indices in label_indices.items():
+    print(f"Found {len(indices)} {label} sounds")
 
-# Extract snare and cymbal features
-snare_features = features[snare_indices]
-cymbal_features = features[cymbal_indices]
+# Extract features based on identified indices and combine them based on specified percentages
+combined_features = []
+for label, percentage in labels_config.items():
+    indices = label_indices[label]
+    label_features = features[indices]
+    combined_features.append(label_features * (percentage / 100.0))
 
-# Combine snare and cymbal features based on specified percentages
-snare_percentage = 0.8
-cymbal_percentage = 0.2
-combined_features = np.vstack([
-    snare_features * snare_percentage,
-    cymbal_features * cymbal_percentage
-])
+# Combine all features into a single array
+combined_features = np.vstack(combined_features)
 print("Combined features shape:", combined_features.shape)
 
 # Normalize features
