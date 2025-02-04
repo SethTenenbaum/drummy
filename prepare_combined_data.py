@@ -1,6 +1,7 @@
 import json
 import numpy as np
 import pickle
+import os
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
@@ -19,7 +20,7 @@ with open('features/labels.pkl', 'rb') as f:
     print("Labels loaded:", labels.shape)
 
 # Identify indices of sounds based on labels configuration
-label_indices = {label: [i for i, lbl in enumerate(labels) if label in lbl.lower()] for label in labels_config.keys()}
+label_indices = {label: [i for i, lbl in enumerate(labels) if any(label in str(l).lower() for l in lbl)] for label in labels_config.keys()}
 for label, indices in label_indices.items():
     print(f"Found {len(indices)} {label} sounds")
 
@@ -43,11 +44,15 @@ pca = PCA(n_components=20)  # Adjust the number of components as needed
 combined_features = pca.fit_transform(combined_features)
 print("Combined features after PCA:", combined_features.shape)
 
+# Create a directory called 'combined_features' to save the .pkl files
+output_dir = 'combined_features'
+os.makedirs(output_dir, exist_ok=True)
+
 # Save the prepared combined features, scaler, and PCA
-with open('combined_features.pkl', 'wb') as f:
+with open(os.path.join(output_dir, 'combined_features.pkl'), 'wb') as f:
     pickle.dump(combined_features, f)
-with open('combined_scaler.pkl', 'wb') as f:
+with open(os.path.join(output_dir, 'combined_scaler.pkl'), 'wb') as f:
     pickle.dump(scaler, f)
-with open('combined_pca.pkl', 'wb') as f:
+with open(os.path.join(output_dir, 'combined_pca.pkl'), 'wb') as f:
     pickle.dump(pca, f)
-print("Combined features, scaler, and PCA saved")
+print(f"Combined features, scaler, and PCA saved to '{output_dir}'")
