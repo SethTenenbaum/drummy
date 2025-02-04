@@ -1,6 +1,6 @@
 # Drummy
 
-Drummy is a project that uses TensorFlow to generate new drum sounds based on existing samples and user-controlled parameters. The project consists of three main components: feature extraction, neural network training, and sound synthesis.
+Drummy is a project that uses TensorFlow to generate new drum sounds based on existing samples and user-controlled parameters. For example, take 80% of snare samples and combine them with 20% of high hat samples and generate a new drum hit.  The project consists of three main components: feature extraction, neural network training, and sound synthesis.
 
 ## Project Structure
 
