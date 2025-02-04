@@ -82,9 +82,13 @@ for root, dirs, files in os.walk(sample_dir):
             feature = extract_features(file_path)
             if feature is not None:
                 features.append(feature)
-                # Use folder name as part of the label
-                folder_name = os.path.basename(root)
-                labels.append(folder_name)  # Use folder name as label
+                
+                # Use filename and folder structure as part of the label
+                relative_path = os.path.relpath(file_path, sample_dir)
+                folder_labels = os.path.dirname(relative_path).split(os.sep)
+                file_label = os.path.splitext(file_name)[0]
+                combined_label = folder_labels + [file_label]
+                labels.append(combined_label)  # Use folder structure and filename as labels
             else:
                 skipped_files.append(file_path)
             processed_files += 1
@@ -100,10 +104,14 @@ print(f"Skipped files: {len(skipped_files)}")
 for skipped_file in skipped_files:
     print(f"Skipped file: {skipped_file}")
 
+# Pad labels to ensure they all have the same length
+max_label_length = max(len(label) for label in labels)
+padded_labels = [label + [''] * (max_label_length - len(label)) for label in labels]
+
 # Convert features and labels to NumPy arrays
 try:
     features = np.array(features)
-    labels = np.array(labels)
+    labels = np.array(padded_labels)
 except ValueError as e:
     print(f"Error converting features to NumPy array: {e}")
     features = None
