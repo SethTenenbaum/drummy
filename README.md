@@ -82,3 +82,11 @@ Requirements
 - Soundfile
 - Scikit-learn
 
+Contributing
+Contributions are welcome! Please open an issue or submit a pull request.
+
+About the Developer
+The developer of this project is an accomplished programmer with several decades of experience in the field. In addition to his technical expertise, he is also a talented artist, bringing a unique blend of creativity and technical skill to his projects.
+
+License
+This project is licensed under the MIT License. See the LICENSE file for details.
