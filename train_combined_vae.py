@@ -1,3 +1,4 @@
+import os
 import pickle
 import numpy as np
 import tensorflow as tf
@@ -6,6 +7,7 @@ from tensorflow.keras.losses import mse
 from tensorflow.keras.optimizers import Adam
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from tensorflow.keras.saving import register_keras_serializable
 
 # Load combined features
 with open('combined_features/combined_features.pkl', 'rb') as f:
@@ -53,6 +55,7 @@ z_mean = layers.Dense(latent_dim)(h)
 z_log_var = layers.Dense(latent_dim)(h)
 
 # Sampling function
+@register_keras_serializable()
 def sampling(args):
     z_mean, z_log_var = args
     batch = tf.shape(z_mean)[0]
@@ -69,6 +72,7 @@ h_decoded = decoder_h(z)
 x_decoded_mean = decoder_mean(h_decoded)
 
 # Custom layer for KL divergence loss
+@register_keras_serializable()
 class KLDivergenceLayer(layers.Layer):
     def call(self, inputs):
         z_mean, z_log_var = inputs
@@ -82,6 +86,7 @@ class KLDivergenceLayer(layers.Layer):
 z_mean, z_log_var = KLDivergenceLayer()([z_mean, z_log_var])
 
 # Custom layer for reconstruction loss
+@register_keras_serializable()
 class ReconstructionLossLayer(layers.Layer):
     def call(self, inputs):
         original, reconstructed = inputs
@@ -102,6 +107,10 @@ vae.compile(optimizer=Adam())
 # Train the VAE
 vae.fit(combined_features, combined_features, epochs=50, batch_size=32, validation_split=0.2)
 
+# Create the directory for saving the model if it doesn't exist
+output_dir = 'saved_combined_model'
+os.makedirs(output_dir, exist_ok=True)
+
 # Save the trained VAE model
-vae.save('vae_combined_model.keras')
-print("Trained VAE model saved to 'vae_combined_model.keras'")
+vae.save(os.path.join(output_dir, 'vae_combined_model.keras'))
+print(f"Trained VAE model saved to '{output_dir}/vae_combined_model.keras'")
