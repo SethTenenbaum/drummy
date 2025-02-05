@@ -21,7 +21,8 @@ with open('features/labels.pkl', 'rb') as f:
 
 with open('features/sample_sizes.pkl', 'rb') as f:
     sample_sizes = pickle.load(f)
-    print("Sample sizes loaded:", len(sample_sizes))
+    sample_sizes = np.array(sample_sizes)  # Convert to NumPy array
+    print("Sample sizes loaded:", sample_sizes.shape)
 
 # Identify indices of sounds based on labels configuration
 label_indices = {label: [i for i, lbl in enumerate(labels) if any(label in str(l).lower() for l in lbl)] for label in labels_config.keys()}
@@ -34,7 +35,7 @@ combined_sample_sizes = []
 for label, percentage in labels_config.items():
     indices = label_indices[label]
     label_features = features[indices]
-    label_sample_sizes = [sample_sizes[i] for i in indices]
+    label_sample_sizes = sample_sizes[indices]  # Use the precomputed sample sizes
     
     combined_features.append(label_features * (percentage / 100.0))
     combined_sample_sizes.extend(label_sample_sizes)  # Collect all sample sizes

@@ -1,10 +1,10 @@
 import pickle
 
-# Load the sample sizes
-sample_sizes_path = 'combined_features/sample_sizes.pkl'
-with open(sample_sizes_path, 'rb') as f:
-    sample_sizes = pickle.load(f)
+# Load the sample lengths
+sample_lengths_path = 'combined_features/sample_lengths.pkl'
+with open(sample_lengths_path, 'rb') as f:
+    sample_lengths = pickle.load(f)
 
-# Print the contents of sample_sizes
-print(f"Sample sizes: {sample_sizes}")
-print(f"Number of sample sizes: {len(sample_sizes)}")
+# Print the contents of sample_lengths
+print(f"Sample lengths: {sample_lengths}")
+print(f"Number of sample lengths: {len(sample_lengths)}")
