@@ -7,11 +7,15 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.saving import register_keras_serializable
 from tensorflow.keras import layers
 from tensorflow.keras.losses import mse
+import json
 
 # Define file paths
 model_path = os.path.join('saved_combined_model', 'vae_combined_model.keras')
 scaler_path = os.path.join('combined_features', 'combined_scaler.pkl')
 pca_path = os.path.join('combined_features', 'combined_pca.pkl')
+sample_sizes_path = os.path.join('combined_features', 'sample_sizes.pkl')
+labels_path = os.path.join('features', 'labels.pkl')
+labels_config_path = 'labels_config.json'
 output_dir = 'outputted_sounds'
 output_file = os.path.join(output_dir, 'generated_combined_sound.wav')
 
@@ -48,21 +52,52 @@ class ReconstructionLossLayer(layers.Layer):
 # Load the trained VAE model
 vae = load_model(model_path, compile=False)
 
-# Load the scaler and PCA
+# Load the scaler, PCA, sample sizes, and labels
 with open(scaler_path, 'rb') as f:
     scaler = pickle.load(f)
 with open(pca_path, 'rb') as f:
     pca = pickle.load(f)
+with open(sample_sizes_path, 'rb') as f:
+    sample_sizes = pickle.load(f)
+    print(f"Sample sizes loaded: {len(sample_sizes)}")
+with open(labels_path, 'rb') as f:
+    labels = pickle.load(f)
+    print(f"Labels loaded: {len(labels)}")
+
+# Load labels configuration
+with open(labels_config_path, 'r') as f:
+    labels_config = json.load(f)
+    print(f"Labels configuration loaded: {labels_config}")
 
 # Function to generate new combined features
-def generate_combined_features(num_samples=100):
+def generate_combined_features(num_samples=100, sample_size=44100):
     latent_dim = 20  # Dimension of the latent space, matching the input shape of the VAE model
     z_sample = np.random.normal(size=(num_samples, latent_dim))
     generated_features = vae.predict(z_sample)
     return generated_features
 
-# Generate new combined features
-new_combined_features = generate_combined_features(num_samples=100)
+# Compute the weighted average sample size
+def compute_weighted_sample_size(labels_config, labels, sample_sizes):
+    weighted_sample_size = 0
+    for label, percentage in labels_config.items():
+        indices = [i for i, lbl in enumerate(labels) if any(label in str(l).lower() for l in lbl)]
+        print(f"Label: {label}, Indices: {indices}")  # Debug print
+        if not indices:
+            print(f"No indices found for label: {label}")
+            continue
+        label_sample_sizes = [sample_sizes[i] for i in indices if i < len(sample_sizes)]
+        if not label_sample_sizes:
+            print(f"No sample sizes found for label: {label}")
+            continue
+        print(f"Label: {label}, Sample Sizes: {label_sample_sizes}")  # Debug print
+        weighted_sample_size += np.mean(label_sample_sizes) * (percentage / 100.0)
+    return int(weighted_sample_size)
+
+# Compute the weighted sample size
+weighted_sample_size = compute_weighted_sample_size(labels_config, labels, sample_sizes)
+
+# Generate new combined features based on the weighted sample size
+new_combined_features = generate_combined_features(num_samples=100, sample_size=weighted_sample_size)
 
 # Inverse transform the features using PCA and scaler
 new_combined_features = pca.inverse_transform(new_combined_features)
@@ -73,6 +108,9 @@ audio_data = new_combined_features.flatten()
 
 # Ensure the output directory exists
 os.makedirs(output_dir, exist_ok=True)
+
+# Adjust the length of the audio data to match the weighted sample size
+audio_data = audio_data[:weighted_sample_size]
 
 # Check the shape and content of the generated features
 print(f"Generated features shape: {new_combined_features.shape}")

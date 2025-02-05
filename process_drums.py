@@ -9,7 +9,7 @@ def extract_features(file_path):
         y, sr = librosa.load(file_path, sr=44100)
     except Exception as e:
         print(f"Error loading {file_path}: {e}")
-        return None
+        return None, None
     
     # Initialize feature list and feature names
     feature_list = []
@@ -59,11 +59,12 @@ def extract_features(file_path):
     else:
         features = None
     
-    return features
+    return features, len(y)
 
 sample_dir = 'samples/'
 features = []
 labels = []
+sample_sizes = []
 skipped_files = []
 
 # Debug print to check if the directory is being read correctly
@@ -79,9 +80,10 @@ for root, dirs, files in os.walk(sample_dir):
         if file_name.endswith('.wav'):
             file_path = os.path.join(root, file_name)
             print(f"Processing file: {file_path}")
-            feature = extract_features(file_path)
+            feature, sample_size = extract_features(file_path)
             if feature is not None:
                 features.append(feature)
+                sample_sizes.append(sample_size)
                 
                 # Use filename and folder structure as part of the label
                 relative_path = os.path.relpath(file_path, sample_dir)
@@ -125,13 +127,16 @@ if features is not None and labels is not None:
     output_dir = 'features'
     os.makedirs(output_dir, exist_ok=True)
 
-    # Save features and labels to files
+    # Save features, labels, and sample sizes to files
     with open(os.path.join(output_dir, 'features.pkl'), 'wb') as f:
         pickle.dump(features, f)
 
     with open(os.path.join(output_dir, 'labels.pkl'), 'wb') as f:
         pickle.dump(labels, f)
 
-    print(f"Features and labels saved to {output_dir}")
+    with open(os.path.join(output_dir, 'sample_sizes.pkl'), 'wb') as f:
+        pickle.dump(sample_sizes, f)
+
+    print(f"Features, labels, and sample sizes saved to {output_dir}")
 else:
     print("Failed to convert features and labels to NumPy arrays.")
