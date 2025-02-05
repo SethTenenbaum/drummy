@@ -12,7 +12,8 @@ from tensorflow.keras.losses import mse
 model_path = os.path.join('saved_combined_model', 'vae_combined_model.keras')
 scaler_path = os.path.join('combined_features', 'combined_scaler.pkl')
 pca_path = os.path.join('combined_features', 'combined_pca.pkl')
-output_file = 'generated_combined_sound.wav'
+output_dir = 'outputted_sounds'
+output_file = os.path.join(output_dir, 'generated_combined_sound.wav')
 
 # Register the sampling function
 @register_keras_serializable()
@@ -66,6 +67,9 @@ new_combined_features = generate_combined_features(num_samples=1)
 # Inverse transform the features using PCA and scaler
 new_combined_features = pca.inverse_transform(new_combined_features)
 new_combined_features = scaler.inverse_transform(new_combined_features)
+
+# Create the output directory if it doesn't exist
+os.makedirs(output_dir, exist_ok=True)
 
 # Save the generated audio to a file
 sf.write(output_file, new_combined_features, 44100)
