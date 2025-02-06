@@ -2,6 +2,9 @@
 
 Drummy is a research project that uses TensorFlow to generate new drum sounds from existing samples based on user-defined parameters. For example, you can create a new drum hit by combining 80% snare samples with 20% high hat samples. Another example is blending 808 bass drums with boom bap samples to produce a unique 808 boom bap sound. The project consists of three main components: feature extraction, neural network training, and sound synthesis.
 
+**Note:** This project is a work in progress, and the quality of the generated drum sounds is currently quite poor. The next step is to replace the Variational Autoencoder (VAE) with WaveNet to improve the quality of the generated sounds.
+
+
 ## Project Structure
 
 - `process_drums.py`: Script for extracting features from drum samples and saving them to files.

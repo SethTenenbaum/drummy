@@ -9,15 +9,17 @@ def extract_features(file_path):
         y, sr = librosa.load(file_path, sr=44100)
     except Exception as e:
         print(f"Error loading {file_path}: {e}")
-        return None, None
+        return None, None, None
     
     # Initialize feature list and feature names
     feature_list = []
     feature_names = ["MFCCs", "Chroma features", "Spectral Contrast", "Zero-Crossing Rate", "Spectral Centroid", 
-                     "Spectral Bandwidth", "Spectral Roll-off", "RMS", "Spectral Flatness", "Spectral Flux"]
+                     "Spectral Bandwidth", "Spectral Roll-off", "RMS", "Spectral Flatness", "Spectral Flux",
+                     "Attack Time", "Decay Time", "Sustain Level", "Release Time"]
     feature_lengths = {"MFCCs": 13, "Chroma features": 12, "Spectral Contrast": 7, "Zero-Crossing Rate": 1, 
                        "Spectral Centroid": 1, "Spectral Bandwidth": 1, "Spectral Roll-off": 1, "RMS": 1, 
-                       "Spectral Flatness": 1, "Spectral Flux": 1}
+                       "Spectral Flatness": 1, "Spectral Flux": 1, "Attack Time": 1, "Decay Time": 1, 
+                       "Sustain Level": 1, "Release Time": 1}
     
     # Function to extract a feature and handle warnings
     def safe_extract(feature_name, feature_func, *args, **kwargs):
@@ -44,12 +46,23 @@ def extract_features(file_path):
     spectral_flatness = safe_extract("Spectral Flatness", librosa.feature.spectral_flatness, y=y)
     spectral_flux = safe_extract("Spectral Flux", lambda y: np.diff(np.abs(librosa.stft(y, n_fft=1024)), axis=1).mean(axis=1), y)
     
+    # Extract temporal features
+    onset_env = librosa.onset.onset_strength(y=y, sr=sr)
+    attack_time = np.argmax(onset_env) / sr
+    decay_time = (np.argmax(onset_env) + np.argmax(onset_env[::-1])) / sr
+    sustain_level = np.mean(onset_env)
+    release_time = len(y) / sr - decay_time
+    
     # Combine all features into a single feature vector
     features = []
     for feature, name in zip([mfccs, chroma, spectral_contrast, zcr, spectral_centroid, spectral_bandwidth, 
-                              spectral_rolloff, rms, spectral_flatness, spectral_flux], feature_names):
+                              spectral_rolloff, rms, spectral_flatness, spectral_flux, attack_time, decay_time, 
+                              sustain_level, release_time], feature_names):
         if feature is not None:
-            features.append(np.mean(feature.T, axis=0))
+            if isinstance(feature, np.ndarray):
+                features.append(np.mean(feature.T, axis=0))
+            else:
+                features.append(np.array([feature]))
         else:
             print(f"Filling missing {name} with zeros for {file_path}")
             features.append(np.zeros(feature_lengths[name]))  # Use predefined lengths for each feature
@@ -59,12 +72,13 @@ def extract_features(file_path):
     else:
         features = None
     
-    return features, len(y)
+    return features, len(y), [attack_time, decay_time, sustain_level, release_time]
 
 sample_dir = 'samples/'
 features = []
 labels = []
 sample_sizes = []
+adsr_params = []
 skipped_files = []
 
 # Debug print to check if the directory is being read correctly
@@ -80,10 +94,11 @@ for root, dirs, files in os.walk(sample_dir):
         if file_name.endswith('.wav'):
             file_path = os.path.join(root, file_name)
             print(f"Processing file: {file_path}")
-            feature, sample_size = extract_features(file_path)
+            feature, sample_size, adsr_param = extract_features(file_path)
             if feature is not None:
                 features.append(feature)
                 sample_sizes.append(sample_size)
+                adsr_params.append(adsr_param)
                 
                 # Use filename and folder structure as part of the label
                 relative_path = os.path.relpath(file_path, sample_dir)
@@ -114,20 +129,23 @@ padded_labels = [label + [''] * (max_label_length - len(label)) for label in lab
 try:
     features = np.array(features)
     labels = np.array(padded_labels)
+    adsr_params = np.array(adsr_params)
 except ValueError as e:
     print(f"Error converting features to NumPy array: {e}")
     features = None
     labels = None
+    adsr_params = None
 
-if features is not None and labels is not None:
+if features is not None and labels is not None and adsr_params is not None:
     print("Extracted features shape:", features.shape)
     print("Extracted labels shape:", labels.shape)
+    print("Extracted ADSR parameters shape:", adsr_params.shape)
 
     # Create a folder called 'features' to save the .pkl files
     output_dir = 'features'
     os.makedirs(output_dir, exist_ok=True)
 
-    # Save features, labels, and sample sizes to files
+    # Save features, labels, sample sizes, and ADSR parameters to files
     with open(os.path.join(output_dir, 'features.pkl'), 'wb') as f:
         pickle.dump(features, f)
 
@@ -137,6 +155,9 @@ if features is not None and labels is not None:
     with open(os.path.join(output_dir, 'sample_sizes.pkl'), 'wb') as f:
         pickle.dump(sample_sizes, f)
 
-    print(f"Features, labels, and sample sizes saved to {output_dir}")
+    with open(os.path.join(output_dir, 'adsr_params.pkl'), 'wb') as f:
+        pickle.dump(adsr_params, f)
+
+    print(f"Features, labels, sample sizes, and ADSR parameters saved to {output_dir}")
 else:
-    print("Failed to convert features and labels to NumPy arrays.")
+    print("Failed to convert features, labels, or ADSR parameters to NumPy arrays.")

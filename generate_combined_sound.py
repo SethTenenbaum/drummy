@@ -14,6 +14,7 @@ model_path = os.path.join('saved_combined_model', 'vae_combined_model.keras')
 scaler_path = os.path.join('combined_features', 'combined_scaler.pkl')
 pca_path = os.path.join('combined_features', 'combined_pca.pkl')
 sample_sizes_path = os.path.join('combined_features', 'sample_sizes.pkl')
+adsr_params_path = os.path.join('combined_features', 'adsr_params.pkl')
 labels_path = os.path.join('features', 'labels.pkl')
 labels_config_path = 'labels_config.json'
 output_dir = 'outputted_sounds'
@@ -52,7 +53,7 @@ class ReconstructionLossLayer(layers.Layer):
 # Load the trained VAE model
 vae = load_model(model_path, compile=False)
 
-# Load the scaler, PCA, sample sizes, and labels
+# Load the scaler, PCA, sample sizes, ADSR parameters, and labels
 with open(scaler_path, 'rb') as f:
     scaler = pickle.load(f)
 with open(pca_path, 'rb') as f:
@@ -60,6 +61,9 @@ with open(pca_path, 'rb') as f:
 with open(sample_sizes_path, 'rb') as f:
     sample_sizes = pickle.load(f)
     print(f"Sample sizes loaded: {len(sample_sizes)}")
+with open(adsr_params_path, 'rb') as f:
+    adsr_params = pickle.load(f)
+    print(f"ADSR parameters loaded: {len(adsr_params)}")
 with open(labels_path, 'rb') as f:
     labels = pickle.load(f)
     print(f"Labels loaded: {len(labels)}")
@@ -107,6 +111,35 @@ os.makedirs(output_dir, exist_ok=True)
 print(f"Generated features shape: {new_combined_features.shape}")
 print(f"Generated features: {new_combined_features}")
 
-# Save the generated audio to a file
-sf.write(output_file, audio_data, 44100)
+# Function to apply ADSR envelope
+def apply_adsr_envelope(audio_data, adsr_params, sr=44100):
+    attack_time, decay_time, sustain_level, release_time = adsr_params
+    total_length = len(audio_data)
+    attack_length = int(attack_time * sr)
+    decay_length = int(decay_time * sr)
+    release_length = int(release_time * sr)
+    sustain_length = total_length - (attack_length + decay_length + release_length)
+    
+    if sustain_length < 0:
+        sustain_length = 0
+    
+    envelope = np.concatenate([
+        np.linspace(0, 1, attack_length),  # Attack
+        np.linspace(1, sustain_level, decay_length),  # Decay
+        np.full(sustain_length, sustain_level),  # Sustain
+        np.linspace(sustain_level, 0, release_length)  # Release
+    ])
+    
+    if len(envelope) > total_length:
+        envelope = envelope[:total_length]
+    else:
+        envelope = np.pad(envelope, (0, total_length - len(envelope)), 'constant')
+    
+    return audio_data * envelope
+
+# Example: Apply ADSR envelope to the generated audio using the first set of ADSR parameters
+adsr_audio_data = apply_adsr_envelope(audio_data, adsr_params[0])
+
+# Save the ADSR-processed audio to a file
+sf.write(output_file, adsr_audio_data, 44100)
 print(f"Generated audio saved to {output_file}")

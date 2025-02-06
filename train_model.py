@@ -23,7 +23,7 @@ def create_model(input_shape, num_classes):
     
     return model
 
-# Load features and labels
+# Load features, labels, sample sizes, and ADSR parameters
 with open('features/features.pkl', 'rb') as f:
     features = pickle.load(f)
     print("Features loaded:", features.shape)
@@ -32,14 +32,28 @@ with open('features/labels.pkl', 'rb') as f:
     labels = pickle.load(f)
     print("Labels loaded:", labels.shape)
 
+with open('features/sample_sizes.pkl', 'rb') as f:
+    sample_sizes = pickle.load(f)
+    sample_sizes = np.array(sample_sizes).reshape(-1, 1)  # Convert to NumPy array and reshape
+    print("Sample sizes loaded:", sample_sizes.shape)
+
+with open('features/adsr_params.pkl', 'rb') as f:
+    adsr_params = pickle.load(f)
+    adsr_params = np.array(adsr_params)  # Convert to NumPy array
+    print("ADSR parameters loaded:", adsr_params.shape)
+
+# Concatenate features, sample sizes, and ADSR parameters
+features_with_sizes_and_adsr = np.hstack((features, sample_sizes, adsr_params))
+print("Features with sample sizes and ADSR parameters shape:", features_with_sizes_and_adsr.shape)
+
 # Normalize features
 scaler = StandardScaler()
-features = scaler.fit_transform(features)
+features_with_sizes_and_adsr = scaler.fit_transform(features_with_sizes_and_adsr)
 
 # Apply PCA to reduce the number of features
 pca = PCA(n_components=20)  # Adjust the number of components as needed
-features = pca.fit_transform(features)
-print("Features after PCA:", features.shape)
+features_with_sizes_and_adsr = pca.fit_transform(features_with_sizes_and_adsr)
+print("Features after PCA:", features_with_sizes_and_adsr.shape)
 
 # Encode multi-dimensional labels using MultiLabelBinarizer
 mlb = MultiLabelBinarizer()
@@ -50,10 +64,10 @@ print("Labels encoded:", labels_encoded.shape)
 num_classes = labels_encoded.shape[1]
 
 # Split the data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(features, labels_encoded, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(features_with_sizes_and_adsr, labels_encoded, test_size=0.2, random_state=42)
 
 # Create and compile the model
-input_shape = (features.shape[1],)
+input_shape = (features_with_sizes_and_adsr.shape[1],)
 model = create_model(input_shape, num_classes)
 model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
